@@ -17,18 +17,18 @@ def ReadConfig(path):
             num = num + 1
         elif v[0]=="Table:" and len(v)>3:
             dev = int(v[1])
-            if config.has_key(dev):
+            if dev in config:
                 name,max,tables = config[dev]
                 tables[int(v[2])] = int(v[3])
                 config[dev]=(name,max,tables)
             else:
-                print "No device configured: ", dev
+                print("No device configured: ", dev)
     return config        
 
 def WriteConfig(config, path):
     f = open(path,"w")
     f.write("#Devices:  dev/node max_tables\n")
-    k = config.keys()
+    k = list(config.keys())
     k.sort()
     for i in k:
         name,max,tables = config[i]
@@ -36,7 +36,7 @@ def WriteConfig(config, path):
     f.write("\n#Tables: dev id(advance) offset\n")
     for i in k:
         name,max,tables = config[i]
-        for id in tables.keys():
+        for id in list(tables.keys()):
             offset = tables[id]
             f.write("Table: %i %i %i\n"%(i,id,offset))
     f.write("\n")
@@ -44,14 +44,14 @@ def WriteConfig(config, path):
 
 
 def FindNextFree(config):
-    k = config.keys()
+    k = list(config.keys())
     k.sort()
     for i in k:
         name,max,tables = config[i]
-        if len(tables.keys())<max:
+        if len(list(tables.keys()))<max:
             maxid = -1
             maxoffset = -1
-            for id in tables.keys():
+            for id in list(tables.keys()):
                 offset = tables[id]
                 if offset>maxoffset:
                     maxoffset = offset
@@ -61,23 +61,23 @@ def FindNextFree(config):
                 size = (s.st_size/8)-1
                 return (i,name,maxoffset+size)
             else:
-                return (i,name,0L)
+                return (i,name,0)
     return None
             
 def AddSsdTable(path,id,config):
-    k = config.keys()
+    k = list(config.keys())
     k.sort()
     for i in k:
         name,max,tables = config[i]
-        ids = tables.keys()
+        ids = list(tables.keys())
         for j in ids:
             if j==id:
-                print "Not adding ", id
+                print("Not adding ", id)
                 return config
-    print "Adding table: ", path,id
+    print("Adding table: ", path,id)
     free = FindNextFree(config)
     if free==None:
-        print "No free space"
+        print("No free space")
         return config
     dev,name,offset = free
     ids = str(id)
@@ -88,23 +88,23 @@ def AddSsdTable(path,id,config):
     return config
 
 def AddDeltaTable(path,id,config):
-    k = config.keys()
+    k = list(config.keys())
     k.sort()
     for i in k:
         name,max,tables = config[i]
-        ids = tables.keys()
+        ids = list(tables.keys())
         for j in ids:
             if j==id:
-                print "Not adding ", id
+                print("Not adding ", id)
                 return config
-    print "Adding table: ", path,id
+    print("Adding table: ", path,id)
     free = FindNextFree(config)
     if free==None:
-        print "No free space"
+        print("No free space")
         return config
     dev,name,offset = free
     ids = str(id)
-    print("Running \"./../TableConvert/TableConvert di %s %s %s\"" % (path,name+":"+str(offset),ids+".idx"))
+    print(("Running \"./../TableConvert/TableConvert di %s %s %s\"" % (path,name+":"+str(offset),ids+".idx")))
     os.system("./../TableConvert/TableConvert di %s %s %s" % (path,name+":"+str(offset),ids+".idx"))
     name,max,tables = config[dev]
     tables[id] = offset
@@ -126,9 +126,9 @@ def AddRecurse(aRoot,path,config):
                 config = AddSsdTable(src,int(e),config)
             else:
                 config = AddRecurse(aRoot,path+"/"+e,config)
-	rematch = re.search('(?:a51_table_)?([\d]+)\.dlt', e)
-	if rematch:
-            config = AddDeltaTable(src,int(rematch.group(1)),config)
+        rematch = re.search('(?:a51_table_)?([\d]+)\.dlt', e)
+        if rematch:
+                config = AddDeltaTable(src,int(rematch.group(1)),config)
     return config
 
 c = ReadConfig("tables.conf")
